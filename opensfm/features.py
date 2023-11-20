@@ -2,7 +2,7 @@
 
 import logging
 import time
-from typing import Tuple, Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -94,7 +94,7 @@ class FeaturesData:
 
     def save(self, fileobject: Any, config: Dict[str, Any]):
         """Save features from file (path like or file object like)"""
-        feature_type = config["feature_type"]
+        feature_type = config["feature_type"].upper()
         if (
             (
                 feature_type == "AKAZE"
@@ -119,7 +119,7 @@ class FeaturesData:
                 colors=self.colors,
                 segmentations=semantic.segmentation.astype(np.uint8),
                 instances=instances.astype(np.int16) if instances is not None else [],
-                segmentation_labels=np.array(semantic.labels).astype(np.str),
+                segmentation_labels=np.array(semantic.labels).astype(str),
                 OPENSFM_FEATURES_VERSION=self.FEATURES_VERSION,
             )
         else:
@@ -604,10 +604,14 @@ def extract_features(
         else config["feature_min_frames"]
     )
 
-    assert len(image.shape) == 3 or len(image.shape) == 2
+    assert image.ndim == 2 or image.ndim == 3 and image.shape[2] in [1, 3]
+    assert image.shape[0] > 2 and image.shape[1] > 2
+    assert np.issubdtype(image.dtype, np.uint8)
+
     image = resized_image(image, extraction_size)
-    if len(image.shape) == 2:  # convert (h, w) to (h, w, 1)
+    if image.ndim == 2:  # convert (h, w) to (h, w, 1)
         image = np.expand_dims(image, axis=2)
+
     # convert color to gray-scale if necessary
     if image.shape[2] == 3:
         image_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
@@ -676,5 +680,9 @@ def build_flann_index(descriptors: np.ndarray, config: Dict[str, Any]) -> Any:
             "key_size": 24,
             "multi_probe_level": 1,
         }
+    else:
+        raise ValueError(
+            f"FLANN isn't supported for feature type {descriptors.dtype.type}."
+        )
 
     return context.flann_Index(descriptors, flann_params)
