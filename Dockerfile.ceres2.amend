@@ -1,0 +1,3 @@
+FROM bliptrip/opensfm:detectron2-pytorch-2.1.1-cuda12.2-cudnn8-runtime
+
+RUN pip3 install vmem
